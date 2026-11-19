@@ -1,0 +1,296 @@
+// 1. Global Variables
+char map[16][16]
+int  reachable[16][16], dist[16][16]
+long long rngState
+int  cap, best                    // cap: backpack capacity, best: theoretical max value
+int  tW[9], tV[9]                 // treasure weight, value: 0-5 treasures, 6=Z drop, 7=V drop, 8=W drop
+int  backpack[9]                  // 1 if item collected
+int  weapon[3]                    // 0=z, 1=v, 2=w
+int  curRow, curCol
+int  heart, stamina, maxStamina, stepcounter
+int  weight, value
+int  gameOver, resultType         // resultType: 0 win, 1 hearts, 2 stamina
+
+// 2. Get random number
+int getRandomNum():
+    rngState = (rngState * 1103515245 + 12345) % 2147483648
+    return rngState >> 16
+
+// 3. Initialize Game
+void initGame():
+    print "=============\nTomb Explorer\n============="
+    print "Seed: "
+    input seed
+    rngState = seed % 2147483648
+    print "Backpack capacity: "
+    input cap
+    for i = 0 to 5:
+        print "Treasure (i+1) weight and value: "
+        input tW[i], tV[i]
+    print "Monster Z drop weight and value: "
+    input tW[6], tV[6]
+    print "Monster V drop weight and value: "
+    input tW[7], tV[7]
+    print "Monster W drop weight and value: "
+    input tW[8], tV[8]
+    heart = 3 ; stepcounter = 0 ; weight = 0 ; value = 0
+    curRow = 0 ; curCol = 0 ; gameOver = 0
+    backpack[] = 0 ; weapon[] = 0
+
+// 4. Check Map Reachable and Find Shortest Distance (BFS)
+int reachableMap():                         // returns shortest distance, or -1 if E unreachable
+    clear reachable[][] and dist[][]
+    int qr[256], qc[256], head = 0, tail = 0
+    int dr[4] = {1,-1,0,0}, dc[4] = {0,0,1,-1}
+    qr[0]=0 ; qc[0]=0 ; tail = 1
+    reachable[0][0] = 1 ; dist[0][0] = 0
+    while head < tail: // have to travel through every point to make sure every items are put in blocks that are reachable
+        r = qr[head] ; c = qc[head] ; head++
+        for k = 0 to 3:
+            nr = r + dr[k] ; nc = c + dc[k]
+            if out of bounds:        continue
+            if reachable[nr][nc]:    continue
+            if map[nr][nc] == '#':   continue
+            reachable[nr][nc] = 1
+            dist[nr][nc] = dist[r][c] + 1
+            qr[tail] = nr ; qc[tail] = nc ; tail++
+    if reachable[15][15]: return dist[15][15] // [15][15] is the position of the exit
+    else:                 return -1
+    
+    /* Note: Original stops at reaching exit, but have to make sure all treasures reachable.
+             Also mention the difference between BFS and DFS */
+
+// 5-1. Fill in Map
+void fillMap():
+    for i = 0 to 15:
+        for j = 0 to 15:
+            if getRandomNum() % 100 < 40: map[i][j] = '#'
+            else: map[i][j] = '.'
+    map[0][0]   = 'S'
+    map[15][15] = 'E'
+// 5-2. Generate Valid Map
+void generateMap():
+    while true:
+        fillMap()
+        D = reachableMap()
+        if D != -1: break // fill the map again when not reachable
+    maxStamina = ceil(1.5 * D)
+    stamina = maxStamina
+
+// 6. Place Objects
+void placeOne(char symbol):
+    while true:
+        row = getRandomNum() % 16
+        col = getRandomNum() % 16
+        if reachable[row][col] and map[row][col] == '.':
+            map[row][col] = symbol
+            return
+
+void placeObjects():
+    for ch in {'1','2','3','4','5','6','Z','V','W','z','v','w'}:   // exact order
+        placeOne(ch)
+
+// 7. Find Maximum Possible Value
+void maxValue(int idx, int curW, int curV):
+    if idx == 9:
+        if curV > best: best = curV
+        return
+    maxValue(idx+1, curW, curV) // skip current one (must consider this situation) 
+    if curW + tW[idx] <= cap:
+        maxValue(idx+1, curW + tW[idx], curV + tV[idx]) // take current one (consider if not exceeding backpack capacity)
+    // call: best = 0 ; maxValue(0, 0, 0)
+
+// 8. Print Map (show player position)
+void printMap():
+    print '#' * 18 + "\n" 
+    for i = 0 to 15:
+        print '#'
+        for j = 0 to 15:
+            if i == curRow and j == curCol: print 'U' // player's position
+            else: print map[i][j]
+        print '#' + "\n"
+    print '#' * 18 + "\n"
+
+// 9. Print Status  
+void printStatus():
+    print "========== Status =========="
+    print "Hearts: " heart " / 3"
+    print "Stamina: " stamina " / " maxStamina
+    print "Weapons: z[" weapon[0](0 -> N, 1 -> Y) "] v[" weapon[1](0 -> N, 1 -> Y) "] w[" weapon[2](0 -> N, 1 -> Y) "]"
+    print "Total Value: " value
+    print "Backpack Weight: " weight " / " cap
+    print "Steps: " stepcounter
+    print "============================"
+
+// 10. Encounter Monster
+int encounterMonster(char monster): // 'Z', 'V' or 'W'
+    if monster == 'Z': idx = 0
+    else if monster == 'V': idx = 1
+    else: idx = 2
+
+    // success
+    if weapon[idx] == 1: 
+        print "You defeated monster " monster "."
+        return 1                             
+    // blocked
+    else:
+        print "Monster " monster " blocked you."
+        print "You need weapon " lowercase(monster) " and lost 1 heart."
+        return 0
+
+// 11. Found Treasure
+void foundTreasure(char treasure, int row, int col):
+    int idx = treasure - '1' // C++ does implicit conversion from char to int
+    print "You found Treasure " (idx+1) "."
+    print "Weight: " tW[idx] ", Value: " tV[idx]
+    while true:
+        print "Take it [y/n]: "
+        input collect
+        if collect == 'y' or 'Y':
+            if weight + tW[idx] > cap:
+                print "Your backpack is too heavy. You cannot take it."
+            else:
+                backpack[idx] = 1
+                weight += tW[idx] ; value += tV[idx]
+                map[row][col] = '.'
+                print "Item collected."
+            return
+        else if collect == 'n' or 'N':
+            print "You left it here."
+            return
+        else:
+            print "Please enter y or n."
+
+// 12. Collect Drop
+void collectDrop(char monster, int row, int col):    // 'Z', 'V' or 'W'
+    if monster == 'Z': idx = 6
+    else if monster == 'V': idx = 7
+    else: idx = 8
+
+    print "You found Monster " monster " drop."
+    print "Weight: " tW[idx] ", Value: " tV[idx]
+    while true:
+        print "Take it [y/n]: "
+        read collect
+        if collect == 'y' or 'Y':
+            if weight + tW[idx] > cap:
+                print "Your backpack is too heavy. You cannot take it."
+            else:
+                backpack[idx] = 1
+                weight += tW[idx] ; value += tV[idx]
+                map[row][col] = '.'
+                print "Item collected."
+            return
+        else if collect == 'n' or 'N':
+            print "You left it here."
+            return
+        else:
+            print "Please enter y or n."
+
+// 13. Pick Weapon
+void pickWeapon(char c, int row, int col):      // 'z', 'v' or 'w'
+    if c == 'z': idx = 0
+    else if c = 'v': idx = 1
+    else idx = 2
+    weapon[idx] = 1
+    map[row][col] = '.'
+    print "You picked up weapon " c "."
+
+// 14. Player Move (Note: tryMove is new, tests implies whether player should move or not.(extracting what "move" functions should do, simplify them.))
+int tryMove(int nr, int nc): // nr, nc: position trying to move to
+    if nr < 0 or nr > 15 or nc < 0 or nc > 15: return 0 // curRow, curCol remains
+    c = map[nr][nc] // c : block object
+    if c == '#': return 2 // curRow, curCol remains
+
+    if c is 'z', 'v' or 'w': pickWeapon(c, nr, nc)
+    else if c is '1' to '6': foundTreasure(c, nr, nc)
+    else if c is 'a', 'b' or 'c': collectDrop((c=='a') -> 'Z', (c=='b') -> 'V', (c=='c') -> 'W', nr, nc)
+    if c is 'Z', 'V' or 'W':
+        stamina-- ; stepcounter++
+        // success
+        if encounterMonster(c) == 1:
+            map[nr][nc] = 'Z' -> 'a', 'V' -> 'b', 'W' -> 'c'
+            // actually moving to new position
+            curRow = nr 
+            curCol = nc
+            collectDrop(c, nr, nc)
+            return 1
+        // blocked
+        else:
+            // curRow, curCol remains
+            heart--
+            return 4
+
+    // actually moving to new position
+    curRow = nr
+    curCol = nc
+    stamina-- ; stepcounter++
+    if c == 'E':                       return 3
+    return 1
+
+moveUp():    return tryMove(curRow-1, curCol)
+moveDown():  return tryMove(curRow+1, curCol)
+moveLeft():  return tryMove(curRow,   curCol-1)
+moveRight(): return tryMove(curRow,   curCol+1)
+
+// 15. Read Command
+int readCommand(char cmd): // returns 1 if the screen should be redrawn
+    if cmd == 'w': code = moveUp()
+    else if 'a':   code = moveLeft()
+    else if 's':   code = moveDown()
+    else if 'd':   code = moveRight()
+    else: print "Invalid command." ; return 0
+
+    if code == 0: print "You cannot move outside the map." ; return 0
+    if code == 2: print "You hit a wall."                  ; return 0
+
+    if code == 3:          win()
+    else if heart == 0:    lose(0)
+    else if stamina == 0:  lose(1)
+    return 1 // moved and hasn't die -> continue game
+
+// 16. Final Results
+//win
+void win():
+    gameOver = 1 ; resultType = 0
+
+//lose and show reason
+void lose(int reason):               // 0 = hearts, 1 = stamina
+    gameOver = 1 ; resultType = reason + 1
+    if reason == 0: print "You ran out of hearts."
+    else:           print "You ran out of stamina."
+
+// print result at last
+void printResult():
+    print "===================================="
+    print "Tomb Explorer Result"
+    print "===================================="
+    if resultType == 0:      print "You escaped the tomb."
+    else if resultType == 1: print "Game Over. You ran out of hearts."
+    else:                    print "Game Over. You ran out of stamina."
+    print "Final Value: " value
+    print "Theoretical Max Value: " best
+    pct = if best == 0: 0.0, else: 100.0 * value / best // implicit conversion to float
+    print "Mission Completeness: " pct (1 decimal) "%"
+    print "Backpack Weight: " weight " / " cap
+    print "Hearts: " heart " / 3"
+    print "Stamina: " stamina " / " maxStamina
+    print "Weapons: z[" weapon[0](0 -> N, 1 -> Y) "] v[" weapon[1](0 -> N, 1 -> Y) "] w[" weapon[2](0 -> N, 1 -> Y) "]"
+    print "Total Steps: " stepcounter
+    print "===================================="
+
+// 17. Main Function
+int main():
+    initGame()
+    generateMap()
+    placeObjects()
+    best = 0
+    maxValue(0, 0, 0)
+    printMap()
+    printStatus()
+    while not gameOver:
+        print "Command [w/a/s/d]: "
+        input cmd
+        if readCommand(cmd): printMap(), printStatus()
+    printResult()
+    return 0
