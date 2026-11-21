@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <cctype>
 using namespace std;
 
 // 1. Global Variables
@@ -27,12 +28,24 @@ int getRandomNum()
     return rngState >> 16;
 }
 
+// 2-1. Read Answer (a whole word counts as ONE answer, so "maybe" is one invalid answer, not 'm','a','y'...)
+int readAnswer(char &ans)           // returns 0 if there is no input left
+{
+    if (!(cin >> ans)) return 0;
+    while (cin.peek() != EOF && !isspace(cin.peek()))
+    {
+        cin.get();
+        ans = '?';                  // more than one character: invalid answer
+    }
+    return 1;
+}
+
 // 3. Initialize Game
 void initGame()
 {
     long long seed;
-    cout << "=============\nTomb Explorer\n=============" << endl;
-    cout << "Seed: ";
+    cout << "=============\nTomb Explorer\n=============\n" << endl;
+    cout << "Seed: \n";
     cin >> seed;
     rngState = seed % 2147483648;
     cout << "Backpack capacity: ";
@@ -218,7 +231,7 @@ void foundTreasure(char treasure, int row, int col)
     {
         char collect;
         cout << "Take it [y/n]: ";
-        if (!(cin >> collect)) return;
+        if (!readAnswer(collect)) return;
         if (collect == 'y' || collect == 'Y')
         {
             if (weight + tW[idx] > cap)
@@ -256,7 +269,7 @@ void collectDrop(char monster, int row, int col)    // 'Z', 'V' or 'W'
     {
         char collect;
         cout << "Take it [y/n]: ";
-        if (!(cin >> collect)) return;
+        if (!readAnswer(collect)) return;
         if (collect == 'y' || collect == 'Y')
         {
             if (weight + tW[idx] > cap)
@@ -299,10 +312,6 @@ int tryMove(int nr, int nc) // nr, nc: position trying to move to
     char c = grid[nr][nc]; // c : block object
     if (c == '#') return 2; // curRow, curCol remains
 
-    if (c == 'z' || c == 'v' || c == 'w') pickWeapon(c, nr, nc);
-    else if (c >= '1' && c <= '6') foundTreasure(c, nr, nc);
-    else if (c == 'a' || c == 'b' || c == 'c')
-        collectDrop((c == 'a') ? 'Z' : (c == 'b') ? 'V' : 'W', nr, nc);
     if (c == 'Z' || c == 'V' || c == 'W')
     {
         stamina--; stepcounter++;
@@ -313,7 +322,7 @@ int tryMove(int nr, int nc) // nr, nc: position trying to move to
             // actually moving to new position
             curRow = nr;
             curCol = nc;
-            collectDrop(c, nr, nc);
+            if (stamina > 0) collectDrop(c, nr, nc); // no stamina left: game ends before the drop
             return 1;
         }
         // blocked
@@ -329,14 +338,20 @@ int tryMove(int nr, int nc) // nr, nc: position trying to move to
     curRow = nr;
     curCol = nc;
     stamina--; stepcounter++;
-    if (c == 'E') return 3;
+    if (c == 'E') return 3;       // reaching E with the last stamina is still a win
+    if (stamina == 0) return 1;   // no stamina left: game ends before any item / weapon event
+
+    if (c == 'z' || c == 'v' || c == 'w') pickWeapon(c, nr, nc);
+    else if (c >= '1' && c <= '6') foundTreasure(c, nr, nc);
+    else if (c == 'a' || c == 'b' || c == 'c')
+        collectDrop((c == 'a') ? 'Z' : (c == 'b') ? 'V' : 'W', nr, nc);
     return 1;
 }
 
 int moveUp()    { return tryMove(curRow - 1, curCol); }
 int moveDown()  { return tryMove(curRow + 1, curCol); }
-int moveLeft()  { return tryMove(curRow, curCol - 1); }
-int moveRight() { return tryMove(curRow, curCol + 1); }
+int moveLeft()  { return tryMove(curRow,   curCol - 1); }
+int moveRight() { return tryMove(curRow,   curCol + 1); }
 
 // 15. Read Command
 int readCommand(char cmd) // returns 1 if the screen should be redrawn
@@ -346,10 +361,10 @@ int readCommand(char cmd) // returns 1 if the screen should be redrawn
     else if (cmd == 'a') code = moveLeft();
     else if (cmd == 's') code = moveDown();
     else if (cmd == 'd') code = moveRight();
-    else { cout << "Invalid command." << endl; return 0; }
+    else { cout << "Invalid command." << endl; return 1; }
 
-    if (code == 0) { cout << "You cannot move outside the map." << endl; return 0; }
-    if (code == 2) { cout << "You hit a wall." << endl;                  return 0; }
+    if (code == 0) { cout << "You cannot move outside the map." << endl; return 1; }
+    if (code == 2) { cout << "You hit a wall." << endl;                  return 1; }
 
     if (code == 3)          win();
     else if (heart == 0)    lose(0);
@@ -410,7 +425,7 @@ int main()
     {
         cout << "Command [w/a/s/d]: ";
         char cmd;
-        if (!(cin >> cmd)) return 0;
+        if (!readAnswer(cmd)) return 0;
         if (readCommand(cmd))
         {
             printMap();
