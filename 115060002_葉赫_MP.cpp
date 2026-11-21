@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
-#include <cctype>
+#include <cctype>                  // isspace() is in cctype header
 using namespace std;
 
 char grid[16][16];
@@ -23,7 +23,7 @@ int getRandomNum(){
     return rngState >> 16; // right shift 16 places
 }
 
-// Read Answer (a whole word counts as ONE answer)
+// Read Reply (a whole word counts as ONE reply)
 int readReply(char &ans){          // returns 0 if there is no input left
     if (!(cin >> ans)) return 0;  // if the first input character is EOF, then return 0
     while (cin.peek() != EOF && !isspace(cin.peek())) //cin.peek : look at the next character without reading it
@@ -181,17 +181,14 @@ void printStatus(){
 
 // Encounter Monster
 int encounterMonster(char monster){ // 'Z', 'V' or 'W'
-    int idx = (monster == 'Z') ? 0 : (monster == 'V') ? 1 : 2;;
-
+    int idx = (monster == 'Z') ? 0 : (monster == 'V') ? 1 : 2;
     // success
-    if (weapon[idx] == 1)
-    {
+    if (weapon[idx] == 1){
         cout << "You defeated monster " << monster << "." << endl;
         return 1;
     }
     // blocked
-    else
-    {
+    else{
         cout << "Monster " << monster << " blocked you." << endl;
         cout << "You need weapon " << (char)(monster - 'A' + 'a') << " and lost 1 heart." << endl;
         return 0;
@@ -231,7 +228,6 @@ void foundTreasure(char treasure, int row, int col)
 // Collect Drop
 void collectDrop(char monster, int row, int col){ // 'Z', 'V' or 'W'
     int idx = (monster == 'Z') ? 6 : (monster == 'V') ? 7 : 8;
-
     cout << "You found Monster " << monster << " drop." << endl;
     cout << "Weight: " << tW[idx] << ", Value: " << tV[idx] << endl;
     while (true){
@@ -327,7 +323,7 @@ void lose(int reason){             // 0 = hearts, 1 = stamina
 }
 
 // Read Command
-void readCommand(char cmd){        // returns 1 if the screen should be redrawn
+void readCommand(char cmd){
     int code;
     if (cmd == 'w') code = moveUp();
     else if (cmd == 'a') code = moveLeft();
@@ -339,17 +335,17 @@ void readCommand(char cmd){        // returns 1 if the screen should be redrawn
     }
     if (code == 0){ 
         cout << "You cannot move outside the map." << endl;
-        return ; 
+        return;
     }
     if (code == 2){ 
-        cout << "You hit a wall." << endl;            
+        cout << "You hit a wall." << endl;
         return;
     }
 
     if (code == 3) win();
     else if (heart == 0) lose(0);  // send lose reason
     else if (stamina == 0) lose(1);
-    return;                        // moved and hasn't die -> continue game
+    return;
 }
 
 // Print Result at Last
